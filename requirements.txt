@@ -15,3 +15,5 @@ decouple
 streamlit_extras
 streamlit_authenticator
 streamlit_feedback
+langchain_openai
+langchain_community
