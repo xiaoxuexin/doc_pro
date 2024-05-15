@@ -14,5 +14,4 @@ uuid
 decouple
 streamlit_extras
 streamlit_authenticator
-yaml
 streamlit_feedback
