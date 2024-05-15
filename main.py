@@ -1,3 +1,7 @@
+__import__('pysqlite3')
+import sys
+sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
+
 from streamlit_feedback import streamlit_feedback
 # from langchain.vectorstores import Chroma
 from langchain_community.vectorstores import Chroma
