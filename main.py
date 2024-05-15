@@ -59,7 +59,7 @@ def configure_retriever(docs):
         embedding=embedding,
         persist_directory=persist_directory
     )
-    conf_retriever = vectordb.as_retriever(search_type="mmr", search_kwargs={"k": 2, "fetch_k": 3})
+    conf_retriever = vectordb.as_retriever(search_type="mmr", search_kwargs={"k": 3, "fetch_k": 5})
     return conf_retriever
 
 
@@ -139,7 +139,7 @@ memory = ConversationBufferMemory(memory_key="chat_history",
                                   input_key='question',
                                   output_key='answer')
 
-template = """Answer the question.
+template = """Answer the question with the best of your knowledge.
 Use the provided context and chat history to answer the question.
 If you don't know the answer, try to ask question for clarification.
 Try to provide more info, and the answer should be no less than 10 sentences.
@@ -177,12 +177,15 @@ if user_query := st.chat_input(placeholder="Please input your question: 🙋"):
         retrieval_handler = PrintRetrievalHandler(st.container())
         stream_handler = StreamHandler(st.empty())
         result = qa_chain({"question": user_query}, callbacks=[retrieval_handler, stream_handler])
-        page = result['source_documents'][0].metadata['page']
-        head, tail = os.path.split(result['source_documents'][0].metadata['source'])
-        response = 'Based on 《' + str(tail).replace(".pdf", "》") + ' Page ' + \
-                   str(page + 1) + ', we can get the ' \
-                   'following info' + \
-                   '\n\n' + result["answer"]
+        response = 'Based on '
+        for doc in result['source_documents']:
+            page = doc.metadata['page']
+            head, tail = os.path.split(doc.metadata['source'])
+            response = response + \
+                       '《' + str(tail).replace(".pdf", "》") + ' Page ' + \
+                       str(page + 1)+' content "'+doc.page_content+'"'+'\n\n'
+        response = response + 'We can get the following info' + \
+                       '\n\n' + result["answer"]
         # show the result in streamlit
         st.session_state.messages.append({"role": "assistant", "content": response})
         st.markdown(response)
