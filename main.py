@@ -20,7 +20,7 @@ from langchain.chains import ConversationalRetrievalChain
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 
 new_key = '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'
-model_name = 'gpt-4-turbo'
+model_name = 'gpt-4o'
 
 st.set_page_config(page_title="LangChain: Interact with Your Documents", page_icon="🦜")
 st.title("🤖Document📃Processor🔧")
@@ -63,6 +63,26 @@ def configure_retriever(docs):
     return conf_retriever
 
 
+class StreamHandler(BaseCallbackHandler):
+    print('inside stream handler')
+
+    def __init__(self, container: st.delta_generator.DeltaGenerator, initial_text: str = ""):
+        self.container = container
+        self.text = initial_text
+        self.run_id_ignore_token = None
+
+    def on_llm_start(self, serialized: dict, prompts: list, **kwargs):
+        # Workaround to prevent showing the rephrased question as output
+        if prompts[0].startswith("Human"):
+            self.run_id_ignore_token = kwargs.get("run_id")
+
+    def on_llm_new_token(self, token: str, **kwargs) -> None:
+        if self.run_id_ignore_token == kwargs.get("run_id", False):
+            return
+        self.text += token
+        self.container.markdown(self.text)
+
+
 class PrintRetrievalHandler(BaseCallbackHandler):
 
     def __init__(self, container):
@@ -80,6 +100,20 @@ class PrintRetrievalHandler(BaseCallbackHandler):
         self.status.update(state="complete")
 
 
+text = []
+if uploaded_files:
+    text = self_upload(uploaded_files)
+    st.info('Files uploaded.')
+
+if not uploaded_files:
+    st.info("Please upload the files.")
+    loaders = [
+        # TextLoader("./files/sample_file.txt"),
+        PyPDFLoader("./files/Data Analysis Handbook.pdf"),
+    ]
+    for loader in loaders:
+        text.extend(loader.load())
+
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
@@ -90,6 +124,14 @@ llm = ChatOpenAI(
     streaming=True
 )
 msgs = StreamlitChatMessageHistory(key="langchain_messages")
+
+if len(msgs.messages) == 0 or st.sidebar.button("Clear message history"):
+    msgs.clear()
+    msgs.add_ai_message("How can I help you today?")
+
+avatars = {"human": "user", "ai": "assistant"}
+for msg in msgs.messages:
+    st.chat_message(avatars[msg.type]).write(msg.content)
 
 memory = ConversationBufferMemory(memory_key="chat_history",
                                   chat_memory=msgs,
@@ -107,20 +149,6 @@ Keep the answer as concise as possible. Don't make up the material.
 {question}
 Helpful Answer:"""
 
-text = []
-
-if uploaded_files:
-    text = self_upload(uploaded_files)
-    st.info('Files uploaded.')
-
-if not uploaded_files:
-    st.info("Please upload the files.")
-    loaders = [
-        # TextLoader("./files/sample_file.txt"),
-        PyPDFLoader("./files/Data Analysis Handbook.pdf"),
-    ]
-    for loader in loaders:
-        text.extend(loader.load())
 
 retriever = configure_retriever(text)
 
@@ -147,7 +175,8 @@ if user_query := st.chat_input(placeholder="Please input your question: 🙋"):
     # machine response
     with st.chat_message("assistant"):
         retrieval_handler = PrintRetrievalHandler(st.container())
-        result = qa_chain({"question": user_query}, callbacks=[retrieval_handler])
+        stream_handler = StreamHandler(st.empty())
+        result = qa_chain({"question": user_query}, callbacks=[retrieval_handler, stream_handler])
         page = result['source_documents'][0].metadata['page']
         head, tail = os.path.split(result['source_documents'][0].metadata['source'])
         response = 'Based on 《' + str(tail).replace(".pdf", "》") + ' Page ' + \
@@ -155,8 +184,10 @@ if user_query := st.chat_input(placeholder="Please input your question: 🙋"):
                    'following info' + \
                    '\n\n' + result["answer"]
         # show the result in streamlit
+        st.session_state.messages.append({"role": "assistant", "content": response})
         st.markdown(response)
     feedback = streamlit_feedback(
         feedback_type="thumbs",
         optional_text_label="[Optional] Please provide an explanation",
+        align="flex-start"
     )
