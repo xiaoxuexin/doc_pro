@@ -19,7 +19,7 @@ from langchain.callbacks.base import BaseCallbackHandler
 from langchain.chains import ConversationalRetrievalChain
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 
-new_key = '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'
+new_key = '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'
 model_name = 'gpt-4o'
 
 st.set_page_config(page_title="LangChain: Interact with Your Documents", page_icon="🦜")
