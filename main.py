@@ -109,7 +109,7 @@ if not uploaded_files:
     st.info("Please upload the files.")
     loaders = [
         # TextLoader("./files/sample_file.txt"),
-        # PyPDFLoader("./files/Data Analysis Handbook.pdf"),
+        PyPDFLoader("./files/Data Analysis Handbook.pdf"),
     ]
     for loader in loaders:
         text.extend(loader.load())
