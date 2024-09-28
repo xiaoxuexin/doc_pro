@@ -17,3 +17,4 @@ streamlit_authenticator
 streamlit_feedback
 langchain_openai
 langchain_community
+protobuf==3.20.*
